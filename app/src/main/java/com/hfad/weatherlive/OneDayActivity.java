@@ -2,8 +2,6 @@ package com.hfad.weatherlive;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -12,20 +10,10 @@ import android.widget.TextView;
 
 public class OneDayActivity extends AppCompatActivity {
 
-    private Forecast forecast;
-
-    public static void start(Context context, Forecast forecast) {
-        Intent starter = new Intent(context, OneDayActivity.class);
-        starter.putExtra("forecast", forecast);
-        context.startActivity(starter);
-    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_one_day);
-
-        forecast = (Forecast) getIntent().getSerializableExtra("forecast");
 
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         String date = preferences.getString("date", "01-01-19");
