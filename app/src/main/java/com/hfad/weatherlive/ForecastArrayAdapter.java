@@ -35,10 +35,10 @@ public class ForecastArrayAdapter extends ArrayAdapter<Forecast> {
         Forecast forecast = forecasts.get(position);
 
         date.setText(forecast.getDate());
-        desc.setText(forecast.getDescription());
-        high.setText(Double.toString(forecast.getHigh()));
-        low.setText(Double.toString(forecast.getLow()));
-        iconId.setImageResource(getImageResource(forecast.getIconId()));
+        desc.setText(forecast.getWeather().get(0).getDescription());
+        high.setText(Double.toString(forecast.getTemp().getHigh()));
+        low.setText(Double.toString(forecast.getTemp().getLow()));
+        iconId.setImageResource(getImageResource(forecast.getWeather().get(0).getIconId()));
 
         return convertView;
     }

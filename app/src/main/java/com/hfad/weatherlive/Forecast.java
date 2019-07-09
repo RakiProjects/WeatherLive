@@ -1,27 +1,43 @@
 package com.hfad.weatherlive;
 
-public class Forecast {
+import com.google.gson.annotations.Expose;
+import com.google.gson.annotations.SerializedName;
+
+import java.io.Serializable;
+import java.util.List;
+
+public class Forecast implements Serializable {
 
 
+    @SerializedName("dt")
+    @Expose
     private String date;
-    private double high;
-    private double low;
-    private String description;
-    private String iconId;
 
-    private double temp;
+    @SerializedName("speed")
+    @Expose
     private double windSpeed;
+
+    @SerializedName("humidity")
+    @Expose
     private int humidity;
+
+    @SerializedName("temp")
+    @Expose
+    private Temp temp;
+
+    @SerializedName("weather")
+    @Expose
+    private List<Weather> weather;
 
     public Forecast() {
     }
 
-    public Forecast(String date, double high, double low, String description, String iconId) {
+    public Forecast(String date, double windSpeed, int humidity, Temp temp, List<Weather> weather) {
         this.date = date;
-        this.high = high;
-        this.low = low;
-        this.description = description;
-        this.iconId = iconId;
+        this.windSpeed = windSpeed;
+        this.humidity = humidity;
+        this.temp = temp;
+        this.weather = weather;
     }
 
     public String getDate() {
@@ -30,46 +46,6 @@ public class Forecast {
 
     public void setDate(String date) {
         this.date = date;
-    }
-
-    public double getHigh() {
-        return high;
-    }
-
-    public void setHigh(double high) {
-        this.high = high;
-    }
-
-    public double getLow() {
-        return low;
-    }
-
-    public void setLow(double low) {
-        this.low = low;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getIconId() {
-        return iconId;
-    }
-
-    public void setIconId(String iconId) {
-        this.iconId = iconId;
-    }
-
-    public double getTemp() {
-        return temp;
-    }
-
-    public void setTemp(double temp) {
-        this.temp = temp;
     }
 
     public double getWindSpeed() {
@@ -88,4 +64,19 @@ public class Forecast {
         this.humidity = humidity;
     }
 
+    public Temp getTemp() {
+        return temp;
+    }
+
+    public void setTemp(Temp temp) {
+        this.temp = temp;
+    }
+
+    public List<Weather> getWeather() {
+        return weather;
+    }
+
+    public void setWeather(List<Weather>weather) {
+        this.weather = weather;
+    }
 }

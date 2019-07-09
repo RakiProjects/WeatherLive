@@ -2,6 +2,7 @@ package com.hfad.weatherlive;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
@@ -29,6 +30,11 @@ import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class ForecastActivity extends AppCompatActivity {
 
@@ -40,153 +46,213 @@ public class ForecastActivity extends AppCompatActivity {
     private int lat, lon;
     public String cityName;
 
-    private FileCaching fileCaching;
+
+    // Retrofit test promenljive
+    String city, mode, units, cnt, APPID;
+
+   // private FileCaching fileCaching;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_forecast);
 
-        updateForecast();
-        fileCaching = new FileCaching(ForecastActivity.this);
-        for (int a = 0; a < 3; a++) {
-            try {
-                Thread.sleep(2000);
-            } catch (Exception e) {
-            }
-        }
 
-        if (forecasts.size() > 0) {
-            listViewForecast = (ListView) findViewById(R.id.listView);
-            forecastArrayAdapter = new ForecastArrayAdapter(this, forecasts);
-            listViewForecast.setAdapter(forecastArrayAdapter);
+        //updateForecast();
+        //fileCaching = new FileCaching(ForecastActivity.this);
+//        for (int a = 0; a < 3; a++) {
+//            try {
+//                Thread.sleep(2000);
+//            } catch (Exception e) {
+//            }
+//        }
 
-            final TextView cityName = (TextView) findViewById(R.id.cityName);
-            cityName.setText(this.cityName);
 
-            Log.v("AAA", "USAO U IF");
+        city = "Belgrade";
+        mode = "json";
+        units = "metric";
+        cnt = "10";
+        APPID = "47b0354955ccecc116b7384d51871c38";
 
-            listViewForecast.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                @Override
-                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                    Intent intent = new Intent(ForecastActivity.this, OneDayActivity.class);
-                    Forecast forecast = new Forecast();
-                    forecast = forecasts.get(position);
-                    SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(ForecastActivity.this);
-                    SharedPreferences.Editor editor = preferences.edit();
-                    editor.putString("date", forecast.getDate());
-                    editor.putString("desc", forecast.getDescription());
-                    editor.putString("wind", String.valueOf(forecast.getWindSpeed()));
-                    editor.putString("humidity", String.valueOf(forecast.getHumidity()));
-                    editor.putString("temp", String.valueOf(forecast.getTemp()));
-                    editor.putString("icon", String.valueOf(forecast.getIconId()));
-                    editor.commit();
-                    startActivity(intent);
-                }
-            });
-        } else {
-            Log.v("AAA", "USAO U ELSE");
-        }
+        GetForecastDataService service = RetrofitInstance.getRetrofitInstance().create(GetForecastDataService.class);
+        Call<ForecastList> call = service.getForecastData(city, mode, units, cnt, APPID);
 
-    }
+//        Log the URL called
+        Log.wtf("URL Called", call.request().url() + "");
 
-    private void updateForecast() {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(ForecastActivity.this);
-        String lat = preferences.getString("Latitude", "0");
-        String lon = preferences.getString("Longitude", "0");
 
-        new AsyncTask<String, Void, Void>() {
+        call.enqueue(new Callback<ForecastList>() {
             @Override
-            protected Void doInBackground(String... params) {
-                HttpURLConnection httpURLConnection = null;
-                BufferedReader bufferedReader = null;
-                try {
-                    Uri.Builder uriBuilder = new Uri.Builder();
-                    uriBuilder.encodedPath("http://api.openweathermap.org/data/2.5/forecast/daily");
-                    uriBuilder.appendQueryParameter("lat", params[0]);
-                    uriBuilder.appendQueryParameter("lon", params[1]);
-                    uriBuilder.appendQueryParameter("mode", "json");
-                    uriBuilder.appendQueryParameter("units", "metric");
-                    uriBuilder.appendQueryParameter("cnt", "8");
-                    uriBuilder.appendQueryParameter("APPID", "47b0354955ccecc116b7384d51871c39");
-                    URL url = new URL(uriBuilder.build().toString());
-
-                    httpURLConnection = (HttpURLConnection) url.openConnection();
-                    httpURLConnection.setRequestMethod("GET");
-                    httpURLConnection.connect();
-
-                    InputStream inputStream = httpURLConnection.getInputStream();
-                    InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
-                    bufferedReader = new BufferedReader(inputStreamReader);
-                    String line;
-                    StringBuilder sb = new StringBuilder();
-                    while ((line = bufferedReader.readLine()) != null)
-                        sb.append(line + "\n");
-                    Log.v("JSON", sb.toString());
-                    forecasts.addAll(parseJsonForecasts(sb.toString()));
-
-                    if (forecasts.size() > 0) {
-                        fileCaching.writeForecasts(1, forecasts);
+            public void onResponse(Call<ForecastList> call, Response<ForecastList> response) {
+                    if(response.isSuccessful()){
+                        final TextView cityName = (TextView) findViewById(R.id.cityName);
+                        cityName.setText("CITY");
+                        generateForecastList(response.body().getForecastList());
                     }else {
-                        forecasts.clear();
-                        ArrayList<Forecast> newForecasts = fileCaching.readForecasts(1);
-                        forecasts.addAll(newForecasts);
-                    }
 
-                } catch (Exception e) {
-                    Log.e("Exception", e.toString());
-
-                } finally {
-                    if (httpURLConnection != null)
-                        httpURLConnection.disconnect();
-                    if (bufferedReader != null)
                         try {
-                            bufferedReader.close();
+                            Toast.makeText(ForecastActivity.this, response.errorBody().string() , Toast.LENGTH_LONG).show();
+
                         } catch (IOException e) {
-                            Log.e("Exception", e.toString());
+                            e.printStackTrace();
                         }
-                }
-                return null;
+                    }
             }
-        }.execute(lat, lon);
+
+            @Override
+            public void onFailure(Call<ForecastList> call, Throwable t) {
+                Toast.makeText(ForecastActivity.this, "onFailure" + t.getMessage(), Toast.LENGTH_LONG).show();
+//                Log.e("adsjkl", t.getMessage());
+
+            }
+        });
+
+
+
+//        if (forecasts.size() > 0) {
+//            listViewForecast = (ListView) findViewById(R.id.listView);
+//            forecastArrayAdapter = new ForecastArrayAdapter(this, forecasts);
+//            listViewForecast.setAdapter(forecastArrayAdapter);
+//
+//            final TextView cityName = (TextView) findViewById(R.id.cityName);
+//            cityName.setText(this.cityName);
+//
+//            Log.v("a", "USAO U IF");
+//
+//            listViewForecast.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+//                @Override
+//                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+////                    Intent intent = new Intent(ForecastActivity.this, OneDayActivity.class);
+//                    Forecast forecast = new Forecast();
+//                    forecast = forecasts.get(position);
+//                    SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(ForecastActivity.this);
+//                    SharedPreferences.Editor editor = preferences.edit();
+//                    editor.putString("date", forecast.getDate());
+//                    editor.putString("desc", forecast.getDescription());
+//                    editor.putString("wind", String.valueOf(forecast.getWindSpeed()));
+//                    editor.putString("humidity", String.valueOf(forecast.getHumidity()));
+//                    editor.putString("temp", String.valueOf(forecast.getTemp()));
+//                    editor.putString("icon", String.valueOf(forecast.getIconId()));
+//                    editor.commit();
+//
+////                    intent.putExtra(OneDayActivity.forecasat, forecasts.get(0));
+////                    startActivity(intent);
+//
+//                    OneDayActivity.start(ForecastActivity.this, forecast);
+//                }
+//            });
+//        } else {
+//            Log.v("AAA", "USAO U ELSE");
+//        }
     }
 
-    private ArrayList<Forecast> parseJsonForecasts(String s) throws JSONException {
-        JSONObject jsonRoot = new JSONObject(s);
-
-
-        JSONObject jsonCityName = jsonRoot.getJSONObject("city");
-        cityName = jsonCityName.getString("name");
-
-
-        JSONArray jsonForecasts = jsonRoot.getJSONArray(OWM_LIST);
-        ArrayList<Forecast> forecasts = new ArrayList<Forecast>();
-        for (int i = 0; i < jsonForecasts.length(); i++) {
-            JSONObject jsonForecast = jsonForecasts.getJSONObject(i);
-            Forecast forecast = new Forecast();
-
-            Calendar cal = Calendar.getInstance();
-            cal.setTimeInMillis(jsonForecast.getLong("dt") * 1000);
-            SimpleDateFormat format = new SimpleDateFormat("dd-MM-yy");
-            String date = format.format(cal.getTimeInMillis());
-            forecast.setDate(date);
-
-
-            forecast.setHumidity(jsonForecast.getInt("humidity"));
-            forecast.setWindSpeed(jsonForecast.getDouble("speed"));
-
-            JSONObject jsonTemp = jsonForecast.getJSONObject("temp");
-            forecast.setHigh(jsonTemp.getDouble("max"));
-            forecast.setLow(jsonTemp.getDouble("min"));
-            forecast.setTemp(jsonTemp.getDouble("day"));
-
-            JSONObject jsonWeather = jsonForecast.getJSONArray("weather").getJSONObject(0);
-            forecast.setDescription(jsonWeather.getString("main"));
-            forecast.setIconId(jsonWeather.getString("icon"));
-            forecasts.add(forecast);
-        }
-        return forecasts;
+    private void generateForecastList(ArrayList<Forecast> forecastArrayList){
+        listViewForecast = (ListView) findViewById(R.id.listView);
+        forecastArrayAdapter = new ForecastArrayAdapter(this, forecastArrayList);
+        listViewForecast.setAdapter(forecastArrayAdapter);
     }
+
+
+//    @SuppressLint("StaticFieldLeak")
+//    private void updateForecast() {
+//        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(ForecastActivity.this);
+//        String lat = preferences.getString("Latitude", "0");
+//        String lon = preferences.getString("Longitude", "0");
+//
+//        new AsyncTask<String, Void, Void>() {
+//            @Override
+//            protected Void doInBackground(String... params) {
+//                HttpURLConnection httpURLConnection = null;
+//                BufferedReader bufferedReader = null;
+//                try {
+//
+//
+//                    Uri.Builder uriBuilder = new Uri.Builder();
+//                    uriBuilder.encodedPath("http://api.openweathermap.org/data/2.5/forecast/daily");
+//                    uriBuilder.appendQueryParameter("lat", params[0]);
+//                    uriBuilder.appendQueryParameter("lon", params[1]);
+//                    uriBuilder.appendQueryParameter("mode", "json");
+//                    uriBuilder.appendQueryParameter("units", "metric");
+//                    uriBuilder.appendQueryParameter("cnt", "8");
+//                    uriBuilder.appendQueryParameter("APPID", "47b0354955ccecc116b7384d51871c39");
+//                    URL url = new URL(uriBuilder.build().toString());
+//
+//                    httpURLConnection = (HttpURLConnection) url.openConnection();
+//                    httpURLConnection.setRequestMethod("GET");
+//                    httpURLConnection.connect();
+//
+//                    InputStream inputStream = httpURLConnection.getInputStream();
+//                    InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+//                    bufferedReader = new BufferedReader(inputStreamReader);
+//                    String line;
+//                    StringBuilder sb = new StringBuilder();
+//                    while ((line = bufferedReader.readLine()) != null)
+//                        sb.append(line + "\n");
+//                    Log.v("JSON", sb.toString());
+//                    forecasts.addAll(parseJsonForecasts(sb.toString()));
+//
+//                    if (forecasts.size() > 0) {
+//                        fileCaching.writeForecasts(1, forecasts);
+//                    } else {
+//                        forecasts.clear();
+//                        ArrayList<Forecast> newForecasts = fileCaching.readForecasts(1);
+//                        forecasts.addAll(newForecasts);
+//                    }
+//
+//                } catch (Exception e) {
+//                    Log.e("Exception", e.toString());
+//
+//                } finally {
+//                    if (httpURLConnection != null)
+//                        httpURLConnection.disconnect();
+//                    if (bufferedReader != null)
+//                        try {
+//                            bufferedReader.close();
+//                        } catch (IOException e) {
+//                            Log.e("Exception", e.toString());
+//                        }
+//                }
+//                return null;
+//            }
+//        }.execute(lat, lon);
+//    }
+
+//    private ArrayList<Forecast> parseJsonForecasts(String s) throws JSONException {
+//        JSONObject jsonRoot = new JSONObject(s);
+//
+//
+//        JSONObject jsonCityName = jsonRoot.getJSONObject("city");
+//        cityName = jsonCityName.getString("name");
+//
+//
+//        JSONArray jsonForecasts = jsonRoot.getJSONArray(OWM_LIST);
+//        ArrayList<Forecast> forecasts = new ArrayList<Forecast>();
+//        for (int i = 0; i < jsonForecasts.length(); i++) {
+//            JSONObject jsonForecast = jsonForecasts.getJSONObject(i);
+//            Forecast forecast = new Forecast();
+//
+//            Calendar cal = Calendar.getInstance();
+//            cal.setTimeInMillis(jsonForecast.getLong("dt") * 1000);
+//            SimpleDateFormat format = new SimpleDateFormat("dd-MM-yy");
+//            String date = format.format(cal.getTimeInMillis());
+//            forecast.setDate(date);
+//
+//
+//            forecast.setHumidity(jsonForecast.getInt("humidity"));
+//            forecast.setWindSpeed(jsonForecast.getDouble("speed"));
+//
+//            JSONObject jsonTemp = jsonForecast.getJSONObject("temp");
+//            forecast.setHigh(jsonTemp.getDouble("max"));
+//            forecast.setLow(jsonTemp.getDouble("min"));
+//            forecast.setTemp(jsonTemp.getDouble("day"));
+//
+//            JSONObject jsonWeather = jsonForecast.getJSONArray("weather").getJSONObject(0);
+//            forecast.setDescription(jsonWeather.getString("main"));
+//            forecast.setIconId(jsonWeather.getString("icon"));
+//            forecasts.add(forecast);
+//        }
+//        return forecasts;
+//    }
 
 
 }
