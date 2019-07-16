@@ -2,6 +2,7 @@ package com.hfad.weatherlive;
 
 import androidx.fragment.app.FragmentActivity;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -17,6 +18,13 @@ import com.google.android.gms.maps.model.MarkerOptions;
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
+
+
+    public static void start(Context context) {
+        Intent starter = new Intent(context, MapsActivity.class);
+        context.startActivity(starter);
+    }
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

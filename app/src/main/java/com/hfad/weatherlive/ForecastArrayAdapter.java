@@ -7,6 +7,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class ForecastArrayAdapter extends ArrayAdapter<Forecast> {
 
@@ -41,6 +42,14 @@ public class ForecastArrayAdapter extends ArrayAdapter<Forecast> {
         iconId.setImageResource(getImageResource(forecast.getWeather().get(0).getIconId()));
 
         return convertView;
+    }
+
+    public void updateForecastList(List<Forecast> list){
+        forecasts.clear();
+        forecasts.addAll(list);
+
+        // pozove adapter da je doslo do promene
+        notifyDataSetChanged();
     }
 
     private int getImageResource(String iconId){

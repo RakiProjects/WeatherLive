@@ -1,258 +1,133 @@
 package com.hfad.weatherlive;
 
-import androidx.appcompat.app.AppCompatActivity;
-
-import android.annotation.SuppressLint;
-import android.content.Intent;
-import android.content.SharedPreferences;
-import android.net.Uri;
-import android.os.AsyncTask;
+import android.content.res.Configuration;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
-import android.util.Log;
-import android.view.View;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
+import android.view.MenuItem;
 import android.widget.ListView;
-import android.widget.TextView;
 import android.widget.Toast;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.ActionBarDrawerToggle;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.lifecycle.Observer;
+import androidx.lifecycle.ViewModelProviders;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.text.SimpleDateFormat;
+import com.google.android.material.navigation.NavigationView;
+
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.List;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
+public class ForecastActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
-public class ForecastActivity extends AppCompatActivity {
-
-
-    private static final String OWM_LIST = "list";
     private ListView listViewForecast;
-    private ArrayAdapter<Forecast> forecastArrayAdapter;
-    private ArrayList<Forecast> forecasts = new ArrayList<Forecast>();
-    private int lat, lon;
-    public String cityName;
+    private ForecastArrayAdapter forecastArrayAdapter;
 
 
-    // Retrofit test promenljive
-    String city, mode, units, cnt, APPID;
+    private DrawerLayout drawer;
+    private ActionBarDrawerToggle toggle;
 
-   // private FileCaching fileCaching;
+    private ForecastViewModel forecastViewModel;
+    private RecyclerView rcView;
+    private MainRecyclerViewAdapter rcAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_forecast);
+        setContentView(R.layout.main_recycler_view);
+
+        Toolbar toolbar = findViewById(R.id.toolbar_main);
+        setSupportActionBar(toolbar);
+
+        drawer = findViewById(R.id.drawer_layout);
+        toggle = new ActionBarDrawerToggle(this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        drawer.addDrawerListener(toggle);
 
 
-        //updateForecast();
-        //fileCaching = new FileCaching(ForecastActivity.this);
-//        for (int a = 0; a < 3; a++) {
-//            try {
-//                Thread.sleep(2000);
-//            } catch (Exception e) {
-//            }
-//        }
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setHomeButtonEnabled(true);
 
+        NavigationView navigationView = findViewById(R.id.nav_view);
+        navigationView.setNavigationItemSelectedListener(this);
 
-        city = "Belgrade";
-        mode = "json";
-        units = "metric";
-        cnt = "10";
-        APPID = "47b0354955ccecc116b7384d51871c38";
+        ///////////////
+        rcView = (RecyclerView) findViewById(R.id.recycler_view);
 
-        GetForecastDataService service = RetrofitInstance.getRetrofitInstance().create(GetForecastDataService.class);
-        Call<ForecastList> call = service.getForecastData(city, mode, units, cnt, APPID);
+        // generateForecastList();
 
-//        Log the URL called
-        Log.wtf("URL Called", call.request().url() + "");
+        generateForecastRecyclerView();
 
-
-        call.enqueue(new Callback<ForecastList>() {
+        forecastViewModel = ViewModelProviders.of(this).get(ForecastViewModel.class);
+        forecastViewModel.forecastListLiveData.observe(this, new Observer<ForecastResponse>() {
+            // na setValue se poziva onChange
             @Override
-            public void onResponse(Call<ForecastList> call, Response<ForecastList> response) {
-                    if(response.isSuccessful()){
-                        final TextView cityName = (TextView) findViewById(R.id.cityName);
-                        cityName.setText("CITY");
-                        generateForecastList(response.body().getForecastList());
-                    }else {
+            public void onChanged(ForecastResponse forecastResponse) {
+                if (forecastResponse == null) return;
 
-                        try {
-                            Toast.makeText(ForecastActivity.this, response.errorBody().string() , Toast.LENGTH_LONG).show();
-
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-            }
-
-            @Override
-            public void onFailure(Call<ForecastList> call, Throwable t) {
-                Toast.makeText(ForecastActivity.this, "onFailure" + t.getMessage(), Toast.LENGTH_LONG).show();
-//                Log.e("adsjkl", t.getMessage());
-
+                if (forecastResponse.getThrowable() != null) {
+                    //...
+                }
+                // da dodamo value listi, jer je inicijalizovano da je null, i, koja sa notifyDataSetChanged promeni u adapteru
+                rcAdapter.updateForecastList(forecastResponse.getForecasts());  // getForecasts je metod iz ForecastResponse, isto kao sto se zvao metod iz ForecastList
             }
         });
-
-
-
-//        if (forecasts.size() > 0) {
-//            listViewForecast = (ListView) findViewById(R.id.listView);
-//            forecastArrayAdapter = new ForecastArrayAdapter(this, forecasts);
-//            listViewForecast.setAdapter(forecastArrayAdapter);
-//
-//            final TextView cityName = (TextView) findViewById(R.id.cityName);
-//            cityName.setText(this.cityName);
-//
-//            Log.v("a", "USAO U IF");
-//
-//            listViewForecast.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-//                @Override
-//                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-////                    Intent intent = new Intent(ForecastActivity.this, OneDayActivity.class);
-//                    Forecast forecast = new Forecast();
-//                    forecast = forecasts.get(position);
-//                    SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(ForecastActivity.this);
-//                    SharedPreferences.Editor editor = preferences.edit();
-//                    editor.putString("date", forecast.getDate());
-//                    editor.putString("desc", forecast.getDescription());
-//                    editor.putString("wind", String.valueOf(forecast.getWindSpeed()));
-//                    editor.putString("humidity", String.valueOf(forecast.getHumidity()));
-//                    editor.putString("temp", String.valueOf(forecast.getTemp()));
-//                    editor.putString("icon", String.valueOf(forecast.getIconId()));
-//                    editor.commit();
-//
-////                    intent.putExtra(OneDayActivity.forecasat, forecasts.get(0));
-////                    startActivity(intent);
-//
-//                    OneDayActivity.start(ForecastActivity.this, forecast);
-//                }
-//            });
-//        } else {
-//            Log.v("AAA", "USAO U ELSE");
-//        }
+        // ovde ce se pozvati setValue() na MutableLiveData forecastListLiveData
+        forecastViewModel.getForecastList();
     }
 
-    private void generateForecastList(ArrayList<Forecast> forecastArrayList){
+    private void generateForecastList() {
         listViewForecast = (ListView) findViewById(R.id.listView);
-        forecastArrayAdapter = new ForecastArrayAdapter(this, forecastArrayList);
+        forecastArrayAdapter = new ForecastArrayAdapter(this, new ArrayList<Forecast>());
         listViewForecast.setAdapter(forecastArrayAdapter);
     }
 
+    private void generateForecastRecyclerView() {
+        rcAdapter = new MainRecyclerViewAdapter(ForecastActivity.this, new ArrayList<Forecast>());
+        rcView.setLayoutManager(new LinearLayoutManager(this));
+        rcView.setAdapter(rcAdapter);
+    }
 
-//    @SuppressLint("StaticFieldLeak")
-//    private void updateForecast() {
-//        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(ForecastActivity.this);
-//        String lat = preferences.getString("Latitude", "0");
-//        String lon = preferences.getString("Longitude", "0");
-//
-//        new AsyncTask<String, Void, Void>() {
-//            @Override
-//            protected Void doInBackground(String... params) {
-//                HttpURLConnection httpURLConnection = null;
-//                BufferedReader bufferedReader = null;
-//                try {
-//
-//
-//                    Uri.Builder uriBuilder = new Uri.Builder();
-//                    uriBuilder.encodedPath("http://api.openweathermap.org/data/2.5/forecast/daily");
-//                    uriBuilder.appendQueryParameter("lat", params[0]);
-//                    uriBuilder.appendQueryParameter("lon", params[1]);
-//                    uriBuilder.appendQueryParameter("mode", "json");
-//                    uriBuilder.appendQueryParameter("units", "metric");
-//                    uriBuilder.appendQueryParameter("cnt", "8");
-//                    uriBuilder.appendQueryParameter("APPID", "47b0354955ccecc116b7384d51871c39");
-//                    URL url = new URL(uriBuilder.build().toString());
-//
-//                    httpURLConnection = (HttpURLConnection) url.openConnection();
-//                    httpURLConnection.setRequestMethod("GET");
-//                    httpURLConnection.connect();
-//
-//                    InputStream inputStream = httpURLConnection.getInputStream();
-//                    InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
-//                    bufferedReader = new BufferedReader(inputStreamReader);
-//                    String line;
-//                    StringBuilder sb = new StringBuilder();
-//                    while ((line = bufferedReader.readLine()) != null)
-//                        sb.append(line + "\n");
-//                    Log.v("JSON", sb.toString());
-//                    forecasts.addAll(parseJsonForecasts(sb.toString()));
-//
-//                    if (forecasts.size() > 0) {
-//                        fileCaching.writeForecasts(1, forecasts);
-//                    } else {
-//                        forecasts.clear();
-//                        ArrayList<Forecast> newForecasts = fileCaching.readForecasts(1);
-//                        forecasts.addAll(newForecasts);
-//                    }
-//
-//                } catch (Exception e) {
-//                    Log.e("Exception", e.toString());
-//
-//                } finally {
-//                    if (httpURLConnection != null)
-//                        httpURLConnection.disconnect();
-//                    if (bufferedReader != null)
-//                        try {
-//                            bufferedReader.close();
-//                        } catch (IOException e) {
-//                            Log.e("Exception", e.toString());
-//                        }
-//                }
-//                return null;
-//            }
-//        }.execute(lat, lon);
-//    }
+    @Override
+    protected void onPostCreate(@Nullable Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+        toggle.syncState();
+    }
 
-//    private ArrayList<Forecast> parseJsonForecasts(String s) throws JSONException {
-//        JSONObject jsonRoot = new JSONObject(s);
-//
-//
-//        JSONObject jsonCityName = jsonRoot.getJSONObject("city");
-//        cityName = jsonCityName.getString("name");
-//
-//
-//        JSONArray jsonForecasts = jsonRoot.getJSONArray(OWM_LIST);
-//        ArrayList<Forecast> forecasts = new ArrayList<Forecast>();
-//        for (int i = 0; i < jsonForecasts.length(); i++) {
-//            JSONObject jsonForecast = jsonForecasts.getJSONObject(i);
-//            Forecast forecast = new Forecast();
-//
-//            Calendar cal = Calendar.getInstance();
-//            cal.setTimeInMillis(jsonForecast.getLong("dt") * 1000);
-//            SimpleDateFormat format = new SimpleDateFormat("dd-MM-yy");
-//            String date = format.format(cal.getTimeInMillis());
-//            forecast.setDate(date);
-//
-//
-//            forecast.setHumidity(jsonForecast.getInt("humidity"));
-//            forecast.setWindSpeed(jsonForecast.getDouble("speed"));
-//
-//            JSONObject jsonTemp = jsonForecast.getJSONObject("temp");
-//            forecast.setHigh(jsonTemp.getDouble("max"));
-//            forecast.setLow(jsonTemp.getDouble("min"));
-//            forecast.setTemp(jsonTemp.getDouble("day"));
-//
-//            JSONObject jsonWeather = jsonForecast.getJSONArray("weather").getJSONObject(0);
-//            forecast.setDescription(jsonWeather.getString("main"));
-//            forecast.setIconId(jsonWeather.getString("icon"));
-//            forecasts.add(forecast);
-//        }
-//        return forecasts;
-//    }
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        toggle.onConfigurationChanged(newConfig);
+    }
 
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (toggle.onOptionsItemSelected(item)) {
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
 
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
+        switch (menuItem.getItemId()) {
+            case R.id.item1:
+                Toast.makeText(this, "Clicked item ", Toast.LENGTH_SHORT).show();
+               //MapsActivity.start(this);
+        }
+        drawer.closeDrawer(GravityCompat.START);
+        return true;
+    }
+
+    @Override
+    public void onBackPressed() {
+        if(drawer.isDrawerOpen(GravityCompat.START)){
+            drawer.closeDrawer(GravityCompat.START);
+        }else {
+        super.onBackPressed();
+        }
+    }
 }

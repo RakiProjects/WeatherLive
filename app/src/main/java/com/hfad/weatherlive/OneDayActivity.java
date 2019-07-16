@@ -20,6 +20,7 @@ public class OneDayActivity extends AppCompatActivity {
         context.startActivity(starter);
     }
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
